@@ -7,8 +7,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         model = get_user_model()
         fields = ("id", "email", "password", "is_staff")
         read_only = ("id", "is_staff")
-        extra_kwargs = {"password": {"write_only": True},
-                        "min_length": 8}
+        extra_kwargs = {"password": {"write_only": True}, "min_length": 8}
 
     def create(self, validated_data):
         return get_user_model().objects.create_user(**validated_data)
@@ -24,31 +23,26 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source='profile.username', read_only=True)
+    username = serializers.CharField(source="profile.username", read_only=True)
 
     class Meta:
         model = get_user_model()
-        fields = ('id', 'username')
-
-
-# class ProfileSerializer(serializers.ModelSerializer):
-#    class Meta:
-#        model = Profile
-#        fields = ('user', 'username', 'avatar')
-#        read_only_fields = ('user',)
+        fields = ("id", "username")
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source='profile.username')
-    avatar = serializers.ImageField(source='profile.avatar', allow_null=True, required=False)
+    username = serializers.CharField(source="profile.username")
+    avatar = serializers.ImageField(
+        source="profile.avatar", allow_null=True, required=False
+    )
 
     class Meta:
         model = get_user_model()
-        fields = ('email', 'username', 'avatar')
+        fields = ("email", "username", "avatar")
 
     def update(self, instance, validated_data):
-        profile_data = validated_data.pop('profile', {})
-        email = validated_data.get('email', instance.email)
+        profile_data = validated_data.pop("profile", {})
+        email = validated_data.get("email", instance.email)
 
         # Update user fields
         instance.email = email
@@ -56,8 +50,8 @@ class ProfileSerializer(serializers.ModelSerializer):
 
         # Update profile fields
         profile = instance.profile
-        profile.username = profile_data.get('username', profile.username)
-        profile.avatar = profile_data.get('avatar', profile.avatar)
+        profile.username = profile_data.get("username", profile.username)
+        profile.avatar = profile_data.get("avatar", profile.avatar)
         profile.save()
 
         return instance
