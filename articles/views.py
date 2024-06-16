@@ -1,6 +1,9 @@
+import asyncio
+
 from rest_framework import mixins, status
+from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
 from rest_framework.viewsets import GenericViewSet
@@ -12,6 +15,7 @@ from articles.serializers import (
     ArticlesListSerializer,
     ArticlesDetailSerializer,
 )
+from articles.telegram_bot import send_notification_to_telegram
 
 
 class ArticlePagination(PageNumberPagination):
@@ -29,7 +33,7 @@ class ArticleViewSet(
 ):
     queryset = Article.objects.all().order_by("-pub_date")
     serializer_class = ArticleSerializer
-    permission_classes = (IsAuthenticated, IsOwnerOrReadOnly)
+    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
     pagination_class = ArticlePagination
 
     def get_serializer_class(self):
@@ -40,7 +44,8 @@ class ArticleViewSet(
         return ArticleSerializer
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        instance = serializer.save(author=self.request.user)
+        asyncio.run(send_notification_to_telegram(instance.title, instance.content))
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -68,3 +73,22 @@ class ArticleViewSet(
             )
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["get"])
+    def latest(self, request):
+        latest_article = self.queryset.first()
+
+        if latest_article:
+            serializer = self.get_serializer(latest_article)
+            return Response(serializer.data)
+        else:
+            return Response(
+                {"detail": "No articles found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+    def get_permissions(self):
+        if self.action == "latest":
+            self.permission_classes = [AllowAny]
+        else:
+            self.permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
+        return super().get_permissions()
